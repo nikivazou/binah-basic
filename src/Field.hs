@@ -1,17 +1,67 @@
 {-# LANGUAGE GADTs #-}
 {-@ LIQUID "--no-pattern-inline"                @-}
+{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--higherorder" @-}
 module Field where
 
-import qualified Database.Persist
+--import qualified Database.Persist
 
 {-@ data Tagged a <p :: User -> Bool> = Tagged { content :: a } @-}
 data Tagged a = Tagged { content :: a }
   deriving Eq
 
+-- {-@ measure prop :: a -> b           @-}
+-- {-@ type Prop E = {v:_ | prop v = E} @-}
+-- {-@
+{-@ measure sharedItemProp :: Int->Int->Int-> Bool@-}
+
+{-@selectSharedItem :: forall <q :: RefinedSharedItem -> User -> Bool, r :: RefinedSharedItem -> Bool, p :: User -> Bool>.
+  {row :: RefinedSharedItem<r> |- User<p> <: User<q row>}
+  FilterList<q, r> RefinedSharedItem -> Tagged<p> [{v:RefinedSharedItem<r>| sharedItemProp (shareFrom v) (shareTo v) (refSharedItemSharedItemId v)}]
+@-}
+selectSharedItem :: FilterList RefinedSharedItem -> Tagged [RefinedSharedItem]
+selectSharedItem = undefined
+
+
+{-@ filterSharedTo ::
+       val: Int -> RefinedFilter<{\row -> shareTo row == val}, {\row v -> True}> RefinedSharedItem @-}
+filterSharedTo :: Int -> RefinedFilter RefinedSharedItem
+filterSharedTo val = RefinedFilter Filter
+
+{-@ exampleSharedList1 :: FilterList<{\_ v ->True}, {\row -> shareTo row == 1}> RefinedSharedItem @-}
+exampleSharedList1 :: FilterList RefinedSharedItem
+exampleSharedList1 = filterSharedTo 1 ?: Empty
+
+{-@ exampleselectSharedItem1 :: Tagged<{\v -> True}> [{v : RefinedSharedItem |sharedItemProp (shareFrom v) 1 (refSharedItemSharedItemId v)}] @-}
+exampleselectSharedItem1 :: Tagged [RefinedSharedItem]
+exampleselectSharedItem1 = selectSharedItem exampleSharedList1
+
+-- {-@projectSharedItemShareFromFn :: forall <q :: User->Bool>.
+{-@ reflect projectSharedItemShareFrom @-}
+projectSharedItemShareFrom :: [RefinedSharedItem] -> Tagged [Int]
+projectSharedItemShareFrom inputL= sequence' (map' projectSharedItemShareFromFn inputL)
+  -- [RefinedSharedItem] -> Tagged<q>[Int]@-}
+
+{-@measure Field.sequence' :: forall <p::User->Bool>. [Tagged<p> a] -> Tagged <p> [a]@-}
+{-@assume sequence' ::forall <p::User->Bool>. [Tagged<p> a] -> Tagged <p> [a]@-}
+sequence' :: [Tagged a] -> Tagged [a]
+sequence' = undefined
+
+{-@ reflect map'@-}
+map' :: (a->b) -> [a] -> [b]
+map' f [] = []
+map' f (x:xs) = (f x):(map' f xs)
+
+{-@measure Field.projectSharedItemShareFromFn::forall <r :: RefinedSharedItem -> Bool, p :: User -> Bool>.
+                                { row :: RefinedSharedItem<r> |- User<p> <: User<{\v-> True}> }
+               v:RefinedSharedItem<r> -> Tagged<p>{from:Int|sharedItemProp from (shareTo v) (refSharedItemSharedItemId v)}@-}
+projectSharedItemShareFromFn :: RefinedSharedItem -> Tagged Int
+projectSharedItemShareFromFn = undefined
+
 {-@ data variance Tagged covariant contravariant @-}
 
 -- Placeholder for Data.Persistent's Filter type
-data Filter a = Filter
+data Filter a = Filter 
 
 {-@ data RefinedFilter record <r :: record -> Bool, q :: record -> User -> Bool> = RefinedFilter (Filter record) @-}
 data RefinedFilter record = RefinedFilter (Filter record)
@@ -28,6 +78,22 @@ data User = User
 @-}
 data User = User { userId::Int, userName :: String, userFriend :: Int, userSSN :: Int }
     deriving (Eq, Show)
+
+-- data RefinedUser =RefinedUser {tuserName::String ,refUserUserId:: Int}
+-- data RefinedTodoItem =RefinedTodoItem {task::String, refTodoItemTodoItemId::Int, done::Bool,tuserId::Int}
+{-@ data RefinedSharedItem =RefinedSharedItem {shareFrom::Int, shareTo::Int, refSharedItemSharedItemId :: Int} @-}
+data RefinedSharedItem =RefinedSharedItem {shareFrom::Int, shareTo::Int, refSharedItemSharedItemId :: Int}
+
+-- {-@ 
+-- assume selectListSharedItem :: MonadIO m => forall <q :: RefinedSharedItem -> RefinedUser -> Bool, r :: RefinedSharedItem -> Bool, p :: RefinedUser -> Bool>.
+-- {row :: RefinedSharedItem<r> |- RefinedUser<p> <: RefinedUser<q row>}
+-- FilterList<q, r> RefinedSharedItem ->  ReaderT SqlBackend m (Tagged<p> [RefinedSharedItem<r>])
+-- @-}
+-- selectListSharedItem :: MonadIO m => FilterList RefinedSharedItem -> ReaderT SqlBackend m (Tagged [RefinedSharedItem])
+-- selectListSharedItem filterList =fmap Tagged (fmap (fmap map_entity_toRefSharedItem) reader_data)
+
+
+
 
 {-@
 data EntityField record typ <q :: record -> User -> Bool> where 
@@ -88,7 +154,7 @@ f ?: fs = f `Cons` fs
 {-@
 selectList :: forall <q :: a -> User -> Bool, r :: a -> Bool, p :: User -> Bool>.
   {row :: a<r> |- User<p> <: User<q row>}
-  FilterList<q, r> a -> Tagged<p> [a<r>]
+  FilterList<q, r> a -> Tagged<p> [{v:a<r>| True}]
 @-}
 selectList :: FilterList a -> Tagged [a]
 selectList = undefined
@@ -174,21 +240,21 @@ names = do
   projectUser rows UserName
 
 -- | This is bad: the result of the query is not public
-{-@ bad1 :: Tagged<{\v -> true}> [{v: User | userFriend v == 1}]
-@-}
-bad1 :: Tagged [User]
-bad1 = selectList (filterUserFriend 1 ?: Empty)
+-- {-@ bad1 :: Tagged<{\v -> true}> [{v: User | userFriend v == 1}]
+-- @-}
+-- bad1 :: Tagged [User]
+-- bad1 = selectList (filterUserFriend 1 ?: Empty)
 
 -- | This is bad: who knows who else has name "alice" and is not friends with user 1?
-{-@ bad2 :: Tagged<{\v -> userId v == 1}> [{v: User | userName v == "alice"}]
-@-}
-bad2 :: Tagged [User]
-bad2 = selectList (filterUserName "alice" ?: Empty)
+-- {-@ bad2 :: Tagged<{\v -> userId v == 1}> [{v: User | userName v == "alice"}]
+-- @-}
+-- bad2 :: Tagged [User]
+-- bad2 = selectList (filterUserName "alice" ?: Empty)
 
 -- | This is bad: user 1 can see the filtered rows but not their SSNs
-{-@ badSSNs :: Tagged<{\v -> userId v == 1}> [Int]
-@-}
-badSSNs :: Tagged [Int]
-badSSNs = do
-  rows <- selectList (filterUserFriend 1 ?: Empty)
-  projectUser rows UserSSN
+-- {-@ badSSNs :: Tagged<{\v -> userId v == 1}> [Int]
+-- @-}
+-- badSSNs :: Tagged [Int]
+-- badSSNs = do
+--   rows <- selectList (filterUserFriend 1 ?: Empty)
+--   projectUser rows UserSSN
