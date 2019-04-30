@@ -2,6 +2,7 @@
 {-@ LIQUID "--no-pattern-inline"                @-}
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--higherorder" @-}
+{-@ LIQUID "--ple" @-}
 module Field where
 
 --import qualified Database.Persist
@@ -13,11 +14,12 @@ data Tagged a = Tagged { content :: a }
 -- {-@ measure prop :: a -> b           @-}
 -- {-@ type Prop E = {v:_ | prop v = E} @-}
 -- {-@
-{-@ measure sharedItemProp :: Int->Int->Int-> Bool@-}
+{-@ measure sharedItemProp :: Int->Int-> Bool@-}
+{-@ measure todoItemProp :: String->Int->Bool@-}
 
 {-@selectSharedItem :: forall <q :: RefinedSharedItem -> User -> Bool, r :: RefinedSharedItem -> Bool, p :: User -> Bool>.
   {row :: RefinedSharedItem<r> |- User<p> <: User<q row>}
-  FilterList<q, r> RefinedSharedItem -> Tagged<p> [{v:RefinedSharedItem<r>| sharedItemProp (shareFrom v) (shareTo v) (refSharedItemSharedItemId v)}]
+  FilterList<q, r> RefinedSharedItem -> Tagged<p> [{v:RefinedSharedItem<r>| sharedItemProp (shareFrom v) (shareTo v)}]
 @-}
 selectSharedItem :: FilterList RefinedSharedItem -> Tagged [RefinedSharedItem]
 selectSharedItem = undefined
@@ -32,18 +34,19 @@ filterSharedTo val = RefinedFilter Filter
 exampleSharedList1 :: FilterList RefinedSharedItem
 exampleSharedList1 = filterSharedTo 1 ?: Empty
 
-{-@ exampleselectSharedItem1 :: Tagged<{\v -> True}> [{v : RefinedSharedItem |sharedItemProp (shareFrom v) 1 (refSharedItemSharedItemId v)}] @-}
+{-@ exampleselectSharedItem1 :: Tagged<{\v -> True}> [{v : RefinedSharedItem |sharedItemProp (shareFrom v) 1 }] @-}
 exampleselectSharedItem1 :: Tagged [RefinedSharedItem]
 exampleselectSharedItem1 = selectSharedItem exampleSharedList1
 
 -- {-@projectSharedItemShareFromFn :: forall <q :: User->Bool>.
 {-@ reflect projectSharedItemShareFrom @-}
+-- {-@ projectSharedItemShareFrom :: xs:[RefinedSharedItem<r>] -> Tagged [{v:Int |  }] @-}
 projectSharedItemShareFrom :: [RefinedSharedItem] -> Tagged [Int]
 projectSharedItemShareFrom inputL= sequence' (map' projectSharedItemShareFromFn inputL)
   -- [RefinedSharedItem] -> Tagged<q>[Int]@-}
 
-{-@measure Field.sequence' :: forall <p::User->Bool>. [Tagged<p> a] -> Tagged <p> [a]@-}
-{-@assume sequence' ::forall <p::User->Bool>. [Tagged<p> a] -> Tagged <p> [a]@-}
+{-@measure Field.sequence' :: forall <p::User->Bool, r::a->Bool>. [Tagged<p> a<r>] -> Tagged <p> [a<r>]@-}
+{-@assume sequence' ::forall <p::User->Bool, r::a->Bool>. [Tagged<p> a<r>] -> Tagged <p> [a<r>]@-}
 sequence' :: [Tagged a] -> Tagged [a]
 sequence' = undefined
 
@@ -54,9 +57,100 @@ map' f (x:xs) = (f x):(map' f xs)
 
 {-@measure Field.projectSharedItemShareFromFn::forall <r :: RefinedSharedItem -> Bool, p :: User -> Bool>.
                                 { row :: RefinedSharedItem<r> |- User<p> <: User<{\v-> True}> }
-               v:RefinedSharedItem<r> -> Tagged<p>{from:Int|sharedItemProp from (shareTo v) (refSharedItemSharedItemId v)}@-}
+               v:RefinedSharedItem<r> -> Tagged<p>{from:Int|sharedItemProp from (shareTo v)}@-}
 projectSharedItemShareFromFn :: RefinedSharedItem -> Tagged Int
 projectSharedItemShareFromFn = undefined
+
+{-@selectTodoItem :: forall <q :: RefinedTodoItem -> User -> Bool, r :: RefinedTodoItem -> Bool, p :: User -> Bool>.
+  {row :: RefinedTodoItem<r> |- User<p> <: User<q row>}
+  FilterList<q, r> RefinedTodoItem -> Tagged<p> [{v:RefinedTodoItem<r>| todoItemProp (task v) (tuserId v)}]
+@-}
+selectTodoItem :: FilterList RefinedTodoItem -> Tagged [RefinedTodoItem]
+selectTodoItem = undefined
+
+{-@ filterTodoTask ::
+       val: Int -> RefinedFilter<{\row -> tuserId row == val}, {\row v -> tuserId row == userId v || sharedItemProp (tuserId row) (userId v)}> RefinedTodoItem @-}
+filterTodoTask :: Int -> RefinedFilter RefinedTodoItem
+filterTodoTask val = RefinedFilter Filter
+
+{-@ exampleTodoList1 :: FilterList<{\row v -> (tuserId row == userId v) || (sharedItemProp  (tuserId row) (userId v)) }, {\row -> tuserId row == 1}> RefinedTodoItem @-}
+exampleTodoList1 :: FilterList RefinedTodoItem
+exampleTodoList1 = filterTodoTask 1 ?: Empty
+
+{-@ exampleTodoItemSelect1 :: Tagged<{\v -> userId v == 1}> [{v : RefinedTodoItem |todoItemProp (task v) 1 }] @-}
+exampleTodoItemSelect1 :: Tagged [RefinedTodoItem]
+exampleTodoItemSelect1 = selectTodoItem exampleTodoList1
+
+{-@ filterTodoTask_IN ::
+       val: [Int] -> RefinedFilter<{\row -> inlist (tuserId row) val}, {\row v -> tuserId row == userId v || sharedItemProp  (tuserId row) (userId v)}> RefinedTodoItem @-}
+filterTodoTask_IN :: [Int] -> RefinedFilter RefinedTodoItem
+filterTodoTask_IN val = RefinedFilter Filter
+
+
+{-@ exampleTodoList2 :: FilterList<{\row v -> (tuserId row == userId v) || (sharedItemProp  (tuserId row) (userId v)) }, {\row -> inlist (tuserId row) lst1}> RefinedTodoItem @-}
+exampleTodoList2 :: FilterList RefinedTodoItem
+exampleTodoList2 = filterTodoTask_IN lst1 ?: Empty
+
+
+-- {-@ exampleTodoItemSelect2 :: Tagged<{\v -> userId v == 1}> [{v : RefinedTodoItem |todoItemProp (task v) 1 }] @-}
+-- exampleTodoItemSelect2 :: Tagged [RefinedTodoItem]
+-- exampleTodoItemSelect2 = selectTodoItem exampleTodoList2
+
+
+{-@exampleselectSharedItem2 :: Tagged <{\v -> True}> [{val:Int|sharedItemProp val 1 }]@-}
+exampleselectSharedItem2 :: Tagged [Int]
+exampleselectSharedItem2 =  do
+  -- {-@ rows :: [{v:RefinedSharedItem | sharedItemProp (shareFrom v) 1}] @-}
+  rows <- exampleselectSharedItem1
+  projectSharedItemShareFrom' rows
+
+
+-- {-@ reflect projectSharedItemShareFrom' @-}
+{-@ projectSharedItemShareFrom' :: [{v:RefinedSharedItem|sharedItemProp (shareFrom v) 1}] -> Tagged<{\v -> userId v == 1}> [{v:Int | sharedItemProp v 1}] @-}
+projectSharedItemShareFrom' :: [RefinedSharedItem] -> Tagged [Int]
+projectSharedItemShareFrom' inputL = sequence'' testIntermediate
+  where
+    {-@testIntermediate ::  [Tagged<{\v -> userId v == 1}>{from:Int|sharedItemProp from 1}]@-}
+    testIntermediate = (map'' projectSharedItemShareFromFn' inputL)
+  -- [RefinedSharedItem] -> Tagged<q>[Int]@-}
+{-@measure Field.sequence'' :: forall <r::a->Bool>. [Tagged<{\v -> userId v == 1}> a<r>] -> Tagged <{\v -> userId v == 1}> [a<r>]@-}
+{-@assume sequence'' ::forall <r::a->Bool>. [Tagged<{\v -> userId v == 1}> a<r>] -> Tagged <{\v -> userId v == 1}> [a<r>]@-}
+sequence'' :: [Tagged a] -> Tagged [a]
+sequence'' = undefined
+
+-- {-@ reflect map''@-}
+{-@ assume map'' :: ({v:RefinedSharedItem| sharedItemProp (shareFrom v) 1} -> Tagged<{\v -> userId v == 1}>{from:Int|sharedItemProp from 1})
+              -> [{v:RefinedSharedItem| sharedItemProp (shareFrom v) 1}] -> [Tagged<{\v -> userId v == 1}>{from:Int|sharedItemProp from 1}]  @-}
+map'' :: (RefinedSharedItem->Tagged Int) -> [RefinedSharedItem] -> [Tagged Int]
+-- map'' f [] = []
+-- map'' f (x:xs) = (f x):(map' f xs)
+map'' = undefined
+
+{-@measure Field.projectSharedItemShareFromFn'::
+                {v:RefinedSharedItem| sharedItemProp (shareFrom v) 1} -> Tagged<{\v -> userId v == 1}>{from:Int|sharedItemProp from 1}@-}
+projectSharedItemShareFromFn' :: RefinedSharedItem -> Tagged Int
+projectSharedItemShareFromFn' = undefined
+-- {-@ exampleTodoItemSelect2 :: Tagged<{\v -> userId v == 1}> [RefinedTodoItem] @-}
+-- exampleTodoItemSelect2 :: Tagged [RefinedTodoItem]
+-- exampleTodoItemSelect2 = do
+--     rows <- exampleselectSharedItem1
+--     fromList <- projectSharedItemShareFrom rows
+--     selectTodoItem (filterTodoTask_IN fromList ?: Empty)
+
+
+
+{-@ reflect inlist@-}
+inlist :: Int -> [Int] -> Bool
+inlist _ [] = False
+inlist a (x:xs) = if x == a then True else inlist a xs
+
+
+{-@reflect lst1@-}
+lst1::[Int]
+lst1 = [1,2]
+
+
+
 
 {-@ data variance Tagged covariant contravariant @-}
 
@@ -80,7 +174,8 @@ data User = User { userId::Int, userName :: String, userFriend :: Int, userSSN :
     deriving (Eq, Show)
 
 -- data RefinedUser =RefinedUser {tuserName::String ,refUserUserId:: Int}
--- data RefinedTodoItem =RefinedTodoItem {task::String, refTodoItemTodoItemId::Int, done::Bool,tuserId::Int}
+{-@ data RefinedTodoItem =RefinedTodoItem {task::String, refTodoItemTodoItemId::Int, done::Bool,tuserId::Int} @-}
+data RefinedTodoItem =RefinedTodoItem {task::String, refTodoItemTodoItemId::Int, done::Bool,tuserId::Int}
 {-@ data RefinedSharedItem =RefinedSharedItem {shareFrom::Int, shareTo::Int, refSharedItemSharedItemId :: Int} @-}
 data RefinedSharedItem =RefinedSharedItem {shareFrom::Int, shareTo::Int, refSharedItemSharedItemId :: Int}
 
