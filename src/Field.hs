@@ -104,32 +104,35 @@ exampleselectSharedItem2 =  do
   rows <- exampleselectSharedItem1
   projectSharedItemShareFrom' rows
 
-
--- {-@ reflect projectSharedItemShareFrom' @-}
-{-@ projectSharedItemShareFrom' :: [{v:RefinedSharedItem|sharedItemProp (shareFrom v) 1}] -> Tagged<{\v -> userId v == 1}> [{v:Int | sharedItemProp v 1}] @-}
+{-@ measure Field.projectSharedItemShareFrom' :: [RefinedSharedItem] -> Tagged [Int] @-}
+{-@ assume projectSharedItemShareFrom' :: forall <r1::RefinedSharedItem -> Bool, r2::Int -> Bool, p::User -> Bool>.
+    {self:(
+      xs:[RefinedSharedItem<r1>] -> {out:Tagged<p> [Int<r2>] | out == sequence'' (map'' projectSharedItemShareFromFn' xs) && out == projectSharedItemShareFrom' xs}
+    ) | self == projectSharedItemShareFrom'} @-}
 projectSharedItemShareFrom' :: [RefinedSharedItem] -> Tagged [Int]
-projectSharedItemShareFrom' inputL = sequence'' testIntermediate
-  where
-    {-@testIntermediate ::  [Tagged<{\v -> userId v == 1}>{from:Int|sharedItemProp from 1}]@-}
-    testIntermediate = (map'' projectSharedItemShareFromFn' inputL)
-  -- [RefinedSharedItem] -> Tagged<q>[Int]@-}
-{-@measure Field.sequence'' :: forall <r::a->Bool>. [Tagged<{\v -> userId v == 1}> a<r>] -> Tagged <{\v -> userId v == 1}> [a<r>]@-}
-{-@assume sequence'' ::forall <r::a->Bool>. [Tagged<{\v -> userId v == 1}> a<r>] -> Tagged <{\v -> userId v == 1}> [a<r>]@-}
+projectSharedItemShareFrom' inputL = sequence'' (map'' projectSharedItemShareFromFn' inputL)
+
+{-@ measure Field.sequence'' :: [Tagged a] -> Tagged [a] @-}
+{-@ assume sequence'' :: forall <p :: User->Bool>.
+    {self:(
+      xs:[Tagged<p> a] -> {out:Tagged<p> [a] | out == sequence'' xs}
+    ) | self == sequence''} @-}
 sequence'' :: [Tagged a] -> Tagged [a]
-sequence'' = undefined
+sequence'' xs = Tagged (map'' content xs)
 
--- {-@ reflect map''@-}
-{-@ assume map'' :: ({v:RefinedSharedItem| sharedItemProp (shareFrom v) 1} -> Tagged<{\v -> userId v == 1}>{from:Int|sharedItemProp from 1})
-              -> [{v:RefinedSharedItem| sharedItemProp (shareFrom v) 1}] -> [Tagged<{\v -> userId v == 1}>{from:Int|sharedItemProp from 1}]  @-}
-map'' :: (RefinedSharedItem->Tagged Int) -> [RefinedSharedItem] -> [Tagged Int]
--- map'' f [] = []
--- map'' f (x:xs) = (f x):(map' f xs)
-map'' = undefined
+{-@ reflect map''@-}
+map'' :: (a->b) -> [a] -> [b]
+map'' f [] = []
+map'' f (x:xs) = (f x):(map' f xs)
 
-{-@measure Field.projectSharedItemShareFromFn'::
-                {v:RefinedSharedItem| sharedItemProp (shareFrom v) 1} -> Tagged<{\v -> userId v == 1}>{from:Int|sharedItemProp from 1}@-}
+{-@ measure Field.projectSharedItemShareFromFn' :: RefinedSharedItem -> Tagged Int @-}
+{-@ assume projectSharedItemShareFromFn' :: forall <r :: RefinedSharedItem -> Bool>.
+    {self:(
+      rsi:RefinedSharedItem<r> -> {out:Tagged<{\v -> True}> {from:Int | sharedItemProp from (shareTo rsi)} | out == projectSharedItemShareFromFn' rsi}
+    ) | self == projectSharedItemShareFromFn'}@-}
 projectSharedItemShareFromFn' :: RefinedSharedItem -> Tagged Int
 projectSharedItemShareFromFn' = undefined
+
 -- {-@ exampleTodoItemSelect2 :: Tagged<{\v -> userId v == 1}> [RefinedTodoItem] @-}
 -- exampleTodoItemSelect2 :: Tagged [RefinedTodoItem]
 -- exampleTodoItemSelect2 = do
