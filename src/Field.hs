@@ -6,7 +6,13 @@
 module Field where
 import qualified Model as M
 
--- type Bool = Bool 
+
+{-@ test :: Int-> Bool -> Int@-}
+test :: Int -> Bool -> Int
+test a b = a
+
+
+{-
 {-@ data Tagged a <p :: User -> Bool> = Tagged { content :: a } @-}
 data Tagged a = Tagged { content :: a }
   deriving Eq
@@ -356,3 +362,9 @@ names = do
 -- badSSNs = do
 --   rows <- selectList (filterUserFriend 1 ?: Empty)
 --   projectUser rows UserSSN
+-}
+
+
+
+
+-}
