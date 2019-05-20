@@ -4,9 +4,9 @@
 {-@ LIQUID "--higherorder" @-}
 {-@ LIQUID "--ple" @-}
 module Field where
+import qualified Model as M
 
---import qualified Database.Persist
-
+-- type Bool = Bool 
 {-@ data Tagged a <p :: User -> Bool> = Tagged { content :: a } @-}
 data Tagged a = Tagged { content :: a }
   deriving Eq

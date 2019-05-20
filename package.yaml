@@ -2,8 +2,48 @@ name: binah-basic
 version: "0.0.0"
 
 dependencies:
-- base >=4.8.2.0 && <4.9 || >=4.9.1.0 && <5
-- persistent >=2.8 && <2.9
+# - base >=4.8.2.0 && <4.9 || >=4.9.1.0 && <5
+# - persistent >=2.8 && <2.9
+- base
+
+- yesod 
+- yesod-core 
+- yesod-auth 
+- yesod-static 
+- yesod-form
+- classy-prelude 
+- classy-prelude-conduit 
+- classy-prelude-yesod 
+- bytestring 
+- text 
+- persistent 
+- persistent-sqlite 
+- persistent-template 
+- template-haskell
+- shakespeare 
+- hjsmin 
+- monad-control 
+- wai-extra 
+- yaml 
+- http-client-tls 
+- http-conduit 
+- directory 
+- warp 
+- data-default
+- aeson 
+- conduit 
+- monad-logger 
+- fast-logger 
+- wai-logger 
+- file-embed
+- safe
+- unordered-containers
+- containers
+- vector
+- time
+- case-insensitive
+- wai
+- foreign-store
 
 library:
   source-dirs: src
