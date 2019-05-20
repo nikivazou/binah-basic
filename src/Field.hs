@@ -4,7 +4,7 @@
 {-@ LIQUID "--higherorder" @-}
 {-@ LIQUID "--ple" @-}
 module Field where
-import qualified Model as M
+import  Model 
 
 
 {-@ test :: Int-> Bool -> Int@-}
