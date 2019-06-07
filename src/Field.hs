@@ -96,13 +96,21 @@ exampleTodoList2 = filterTodoTask_IN lst1 ?: Empty
 -- exampleTodoItemSelect2 :: Tagged [RefinedTodoItem]
 -- exampleTodoItemSelect2 = selectTodoItem exampleTodoList2
 
+{-@
+assume projectSharedItemShareFromnew :: forall <r1::RefinedSharedItem -> Bool, r2::Int -> Bool, p::User->Bool>.
+    {rsi::RefinedSharedItem<r1> |- {from:Int | sharedItemProp from (shareTo rsi)}<:Int<r2>}
+    {rsi::RefinedSharedItem<r1> |- User<p> <: User<{\v -> shareTo rsi == userId v}>}
+    xs:[RefinedSharedItem<r1>] -> Tagged<p> [Int<r2>]
+    @-}                                -- ^^^^^^^^^^^ this is the policy on the field ShareFrom
+projectSharedItemShareFromnew :: [RefinedSharedItem] -> Tagged [Int]
+projectSharedItemShareFromnew input = Tagged {content = fmap (shareFrom) input}
 
-{-@exampleselectSharedItem2 :: Tagged <{\v -> True}> [{val:Int|sharedItemProp val 1 }]@-}
+{-@exampleselectSharedItem2 :: Tagged <{\v -> userId v == 1}> [{val:Int|sharedItemProp val 1}]@-}
 exampleselectSharedItem2 :: Tagged [Int]
 exampleselectSharedItem2 =  do
   -- {-@ rows :: [{v:RefinedSharedItem | sharedItemProp (shareFrom v) 1}] @-}
-  rows <- exampleselectSharedItem1
-  projectSharedItemShareFrom' rows
+  rows <- selectSharedItem exampleSharedList1
+  projectSharedItemShareFromnew rows
 
 {-@ measure Field.projectSharedItemShareFrom' :: [RefinedSharedItem] -> Tagged [Int] @-}
 {-@ assume projectSharedItemShareFrom' :: forall <r1::RefinedSharedItem -> Bool, r2::Int -> Bool, p::User -> Bool>.
