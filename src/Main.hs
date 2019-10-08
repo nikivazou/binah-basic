@@ -138,14 +138,22 @@ main = runSqlite ":memory:" $ do
       get "/" (undefined :: TaggedT (Controller Config TIO) ())
       fallback $ respond notFound
 
-{-@ home :: TaggedT<{\_ -> True}, {\_ -> False}> (ReaderT SqlBackend (AuthenticatedT (Controller Config TIO))) [{v:Entity TodoItem | false }] @-}
+{-@ home :: TaggedT<{\_ -> True}, {\_ -> False}> (ReaderT SqlBackend (AuthenticatedT (Controller Config TIO))) [{v:Entity TodoItem | shared (todoItemOwner (entityVal v)) (entityKey currentUser)}] @-}
 home :: TaggedT (ReaderT SqlBackend (AuthenticatedT (Controller Config TIO))) [Entity TodoItem]
 home = do
   alice <- getLoggedInUserTagged
   aliceId <- project userIdField alice
   shares <- selectList (shareToField ==. aliceId ?: nilFL)
   sharedFromUsers <- projectList shareFromField shares
-  selectList (todoItemOwnerField <-. sharedFromUsers ?: nilFL)
+  castM (selectList (todoItemOwnerField <-. sharedFromUsers ?: nilFL))
+
+
+{-@ castM :: TaggedT<{\_ -> True}, {\_ -> False}> (ReaderT SqlBackend (AuthenticatedT (Controller Config TIO))) [{v:Entity TodoItem | shared (todoItemOwner (entityVal v)) (entityKey currentUser)}]
+      -> TaggedT<{\_ -> True}, {\_ -> False}> (ReaderT SqlBackend (AuthenticatedT (Controller Config TIO))) [{v:Entity TodoItem | shared (todoItemOwner (entityVal v)) (entityKey currentUser)}] @-}
+castM :: TaggedT (ReaderT SqlBackend (AuthenticatedT (Controller Config TIO))) [Entity TodoItem]
+      -> TaggedT (ReaderT SqlBackend (AuthenticatedT (Controller Config TIO))) [Entity TodoItem]
+castM x = x 
+
 
 {-@ home' :: TaggedT<{\_ -> False}, {\_ -> True}> (ReaderT SqlBackend (AuthenticatedT (Controller Config TIO))) () @-}
 home' :: TaggedT (ReaderT SqlBackend (AuthenticatedT (Controller Config TIO))) ()
