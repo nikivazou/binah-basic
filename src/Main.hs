@@ -138,7 +138,7 @@ main = runSqlite ":memory:" $ do
       get "/" (undefined :: TaggedT (Controller Config TIO) ())
       fallback $ respond notFound
 
-{-@ home :: TaggedT<{\_ -> True}, {\_ -> False}> (ReaderT SqlBackend (AuthenticatedT (Controller Config TIO))) [{v:Entity TodoItem | shared (todoItemOwner (entityVal v)) (entityKey currentUser)}] @-}
+{-@ home :: TaggedT<{\_ -> True}, {\_ -> False}> (ReaderT SqlBackend (AuthenticatedT (Controller Config TIO))) [{v:Entity TodoItem | false }] @-}
 home :: TaggedT (ReaderT SqlBackend (AuthenticatedT (Controller Config TIO))) [Entity TodoItem]
 home = do
   alice <- getLoggedInUserTagged
